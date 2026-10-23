@@ -14,10 +14,30 @@ Route::get('/about', function () {
 });
 
 Route::get('/tasks', function () {
-    $tasks = Task::all();
+    // Get the requested filter, or use the saved preference.
+    $filter = request()->query(
+        'filter',
+        session('task_filter', 'all')
+    );
+
+    // Only allow these three filter values.
+    if (! in_array($filter, ['all', 'pending', 'completed'], true)) {
+        $filter = 'all';
+    }
+
+    // Remember the user's choice in the session.
+    session(['task_filter' => $filter]);
+
+    // Retrieve the appropriate tasks from PostgreSQL.
+    $tasks = match ($filter) {
+        'pending' => Task::where('completed', false)->get(),
+        'completed' => Task::where('completed', true)->get(),
+        default => Task::all(),
+    };
 
     return view('tasks.index', [
         'tasks' => $tasks,
+        'filter' => $filter,
     ]);
 })->name('tasks.index');
 
@@ -48,5 +68,5 @@ Route::post('/tasks', function () {
     $task = Task::create($validated);
 
     // Redirect after success
-    return redirect('/tasks/' . $task->id);
+    return redirect()->route("tasks.index")->with("success","Task created successfully");
 })->name('tasks.store');
