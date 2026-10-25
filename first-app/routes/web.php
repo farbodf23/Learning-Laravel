@@ -50,6 +50,7 @@ Route::get('/tasks/{task}', function (Task $task) {
 Route::patch('/tasks/{task}/toggle', function (Task $task) {
     $task->completed = ! $task->completed;
     $task->save();
+
     return redirect()->route('tasks.index');
 })->name('tasks.toggle');
 
@@ -68,5 +69,5 @@ Route::post('/tasks', function () {
     $task = Task::create($validated);
 
     // Redirect after success
-    return redirect()->route("tasks.index")->with("success","Task created successfully");
+    return redirect()->route('tasks.index')->with('success', 'Task created successfully');
 })->name('tasks.store');
