@@ -3,11 +3,12 @@
 namespace Database\Factories;
 
 use App\Models\Store;
+use App\Models\StoreMembership;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<\App\Models\StoreMembership>
+ * @extends Factory<StoreMembership>
  */
 class StoreMembershipFactory extends Factory
 {

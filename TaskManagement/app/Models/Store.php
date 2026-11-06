@@ -2,13 +2,15 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+
 class Store extends Model
 {
     use HasFactory;
+
     protected $fillable = [
         'name',
     ];
@@ -28,5 +30,12 @@ class Store extends Model
     public function tasks(): HasMany
     {
         return $this->hasMany(Task::class);
+    }
+
+    public function membershipFor(User $user): ?StoreMembership
+    {
+        return $this->memberships()
+            ->where('user_id', $user->id)
+            ->first();
     }
 }

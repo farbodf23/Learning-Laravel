@@ -2,13 +2,14 @@
 
 namespace Database\Factories;
 
-use App\Models\Task;
-use App\Models\User;
 use App\Models\Store;
+use App\Models\Task;
+use App\Models\TaskEvent;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<\App\Models\TaskEvent>
+ * @extends Factory<TaskEvent>
  */
 class TaskEventFactory extends Factory
 {

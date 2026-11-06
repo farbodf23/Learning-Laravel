@@ -2,13 +2,14 @@
 
 namespace Database\Factories;
 
-use App\Models\Task;
-use App\Models\User;
 use App\Models\Store;
+use App\Models\Task;
+use App\Models\TaskComment;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<\App\Models\TaskComment>
+ * @extends Factory<TaskComment>
  */
 class TaskCommentFactory extends Factory
 {
