@@ -19,6 +19,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/me/stores', [AuthController::class, 'myStores']);
         Route::get('/stores/{store}/members', [StoreController::class, 'members']);
         Route::get('/stores/{store}/tasks', [StoreController::class, 'tasks']);
+        Route::post(
+            '/stores/{store}/tasks',
+            [StoreController::class, 'storeTask']
+        );
 
     });
 

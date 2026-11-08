@@ -6,6 +6,8 @@ use App\Models\Store;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class TaskService
 {
@@ -81,4 +83,60 @@ class TaskService
             ->paginate($filters['per_page'] ?? 20);
     }
 
+    public function createTask(
+        Store $store,
+        User $user,
+        array $data
+    ): Task {
+        //Transaction so that an eventless task is not created.
+        return DB::transaction(function () use ($store, $user, $data) {
+
+            // 1. Validate the assignee's store membership.
+            if (! empty($data['assigned_to'])) {
+                $isMember = $store->memberships()
+                    ->where('user_id', $data['assigned_to'])
+                    ->exists();
+
+                if (! $isMember) {
+                    throw ValidationException::withMessages([
+                        'assigned_to' => [
+                            'The assigned user is not a member of this store.',
+                        ],
+                    ]);
+                }
+            }
+
+            // 2. Create the task.
+            $task = $store->tasks()->create([
+                'title' => trim($data['title']),
+                'description' => $data['description'] ?? null,
+                'priority' => $data['priority'] ?? 'medium',
+                'status' => 'todo',
+                'created_by' => $user->id,
+                'assigned_to' => $data['assigned_to'] ?? null,
+                'due_at' => $data['due_at'] ?? null,
+                'completed_at' => null,
+            ]);
+
+            // 3. Record the initial event.
+            $task->events()->create([
+                'store_id' => $store->id,
+                'actor_id' => $user->id,
+                'event_type' => 'created',
+                'changes' => [
+                    'title' => $task->title,
+                    'status' => $task->status,
+                    'priority' => $task->priority,
+                    'assigned_to' => $task->assigned_to,
+                    'due_at' => $task->due_at,
+                ],
+            ]);
+
+            // 4. Load relationships needed in the response.
+            return $task->load([
+                'creator:id,name',
+                'assignee:id,name',
+            ]);
+        });
+    }
 }

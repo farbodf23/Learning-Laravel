@@ -33,4 +33,23 @@ class StorePolicy
 
         return Response::allow();
     }
+
+    public function createTask(User $user, Store $store): Response
+    {
+        $membership = $store->membershipFor($user);
+
+        // Non-members should not know whether the store exists.
+        if ($membership === null) {
+            return Response::denyAsNotFound();
+        }
+
+        // Only managers can create tasks.
+        if ($membership->role !== 'manager') {
+            return Response::deny(
+                'Only store managers can create tasks.'
+            );
+        }
+
+        return Response::allow();
+    }
 }

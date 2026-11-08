@@ -13,6 +13,9 @@ class TaskEvent extends Model
     public const UPDATED_AT = null;
 
     protected $fillable = [
+        'store_id',
+        'task_id',
+        'actor_id',
         'event_type',
         'changes',
     ];

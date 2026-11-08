@@ -5,12 +5,12 @@ namespace App\Services;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Database\Eloquent\Collection;
+
 class AuthService
 {
     public function login(array $credentials): array
     {
-        if (!Auth::attempt($credentials)) {
+        if (! Auth::attempt($credentials)) {
             throw ValidationException::withMessages([
                 'email' => ['Invalid credentials.'],
             ]);
@@ -30,6 +30,4 @@ class AuthService
     {
         $user->currentAccessToken()->delete();
     }
-    
-
 }
