@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 use App\Services\TaskService;
+use App\Http\Requests\TaskIndexRequest;
 use App\Http\Controllers\Controller;
 use App\Models\Store;
 use Illuminate\Http\Request;
@@ -32,8 +33,8 @@ public function members(
 }
 
 
-    public function tasks(
-    Request $request,
+public function tasks(
+    TaskIndexRequest $request,
     Store $store,
     TaskService $taskService
 ) {
@@ -41,7 +42,8 @@ public function members(
 
     $tasks = $taskService->listTasks(
         $store,
-        $request->user()
+        $request->user(),
+        $request->validated()
     );
 
     return response()->json($tasks);

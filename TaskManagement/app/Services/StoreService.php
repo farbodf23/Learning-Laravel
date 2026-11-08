@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\User;
 use App\Models\Store;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -13,4 +14,10 @@ class StoreService
             ->with('user:id,name,email')
             ->get();
     }
+    public function listUserStores(User $user): Collection
+{
+    return $user->memberships()
+        ->with('store:id,name')
+        ->get();
+}
 }
