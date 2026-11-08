@@ -88,7 +88,7 @@ class TaskService
         User $user,
         array $data
     ): Task {
-        //Transaction so that an eventless task is not created.
+        // Transaction so that an eventless task is not created.
         return DB::transaction(function () use ($store, $user, $data) {
 
             // 1. Validate the assignee's store membership.
@@ -133,6 +133,104 @@ class TaskService
             ]);
 
             // 4. Load relationships needed in the response.
+            return $task->load([
+                'creator:id,name',
+                'assignee:id,name',
+            ]);
+        });
+    }
+
+    public function updateTask(
+        Store $store,
+        Task $task,
+        User $user,
+        array $data
+    ): Task {
+        return DB::transaction(function () use (
+            $store,
+            $task,
+            $user,
+            $data
+        ) {
+            // Retrieve and lock the task.
+            $task = $store->tasks()
+                ->whereKey($task->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $membership = $store->membershipFor($user);
+
+            if (
+                $membership->role === 'staff' &&
+                array_key_exists('assigned_to', $data)
+            ) {
+                throw ValidationException::withMessages([
+                    'assigned_to' => [
+                        'Only managers can reassign tasks.',
+                    ],
+                ]);
+            }
+            // Validate the new assignee.
+            if (
+                array_key_exists('assigned_to', $data) &&
+                $data['assigned_to'] !== null
+            ) {
+                $isMember = $store->memberships()
+                    ->where('user_id', $data['assigned_to'])
+                    ->exists();
+
+                if (! $isMember) {
+                    throw ValidationException::withMessages([
+                        'assigned_to' => [
+                            'The assigned user is not a member of this store.',
+                        ],
+                    ]);
+                }
+            }
+
+            // Capture the old values.
+            $before = [
+                'title' => $task->title,
+                'description' => $task->description,
+                'priority' => $task->priority,
+                'assigned_to' => $task->assigned_to,
+                'due_at' => $task->due_at,
+            ];
+
+            // Apply only the fields provided by the client.
+            $task->fill($data);
+
+            if (array_key_exists('title', $data)) {
+                $task->title = trim($data['title']);
+            }
+            if (! $task->isDirty()) {
+                return $task->load([
+                    'creator:id,name',
+                    'assignee:id,name',
+                ]);
+            }
+            // Save changes.
+            $task->save();
+
+            // Capture the new values.
+            $after = [
+                'title' => $task->title,
+                'description' => $task->description,
+                'priority' => $task->priority,
+                'assigned_to' => $task->assigned_to,
+                'due_at' => $task->due_at,
+            ];
+
+            // Record the update in task history.
+            $task->events()->create([
+                'store_id' => $store->id,
+                'actor_id' => $user->id,
+                'event_type' => 'updated',
+                'changes' => [
+                    'before' => $before,
+                    'after' => $after,
+                ],
+            ]);
+
             return $task->load([
                 'creator:id,name',
                 'assignee:id,name',

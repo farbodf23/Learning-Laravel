@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreTaskRequest;
 use App\Http\Requests\TaskIndexRequest;
+use App\Http\Requests\UpdateTaskRequest;
 use App\Models\Store;
+use App\Models\Task;
 use App\Services\StoreService;
 use App\Services\TaskService;
 use Illuminate\Http\Request;
@@ -66,5 +68,41 @@ class StoreController extends Controller
         return response()->json([
             'data' => $task,
         ], 201);
+    }
+
+    public function showTask(
+        Store $store,
+        Task $task
+    ) {
+        Gate::authorize('view', [$task, $store]);
+
+        $task->load([
+            'creator:id,name',
+            'assignee:id,name',
+        ]);
+
+        return response()->json([
+            'data' => $task,
+        ]);
+    }
+
+    public function updateTask(
+        UpdateTaskRequest $request,
+        Store $store,
+        Task $task,
+        TaskService $taskService
+    ) {
+        Gate::authorize('update', [$task, $store]);
+
+        $updatedTask = $taskService->updateTask(
+            $store,
+            $task,
+            $request->user(),
+            $request->validated()
+        );
+
+        return response()->json([
+            'data' => $updatedTask,
+        ]);
     }
 }

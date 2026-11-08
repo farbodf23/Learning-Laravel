@@ -23,7 +23,14 @@ Route::prefix('v1')->group(function () {
             '/stores/{store}/tasks',
             [StoreController::class, 'storeTask']
         );
-
+        Route::get(
+            '/stores/{store}/tasks/{task}',
+            [StoreController::class, 'showTask']
+        )->scopeBindings();
+        Route::patch(
+            '/stores/{store}/tasks/{task}',
+            [StoreController::class, 'updateTask']
+        )->scopeBindings();
     });
 
 });
