@@ -73,4 +73,33 @@ class TaskPolicy
             'You are not authorized to update this task.'
         );
     }
+
+    public function changeStatus(
+        User $user,
+        Task $task,
+        Store $store
+    ): Response {
+        if ($task->store_id !== $store->id) {
+            return Response::denyAsNotFound();
+        }
+
+        $membership = $store->membershipFor($user);
+
+        if ($membership === null) {
+            return Response::denyAsNotFound();
+        }
+
+        if ($membership->role === 'manager') {
+            return Response::allow();
+        }
+
+        if (
+            $membership->role === 'staff' &&
+            $task->assigned_to === $user->id
+        ) {
+            return Response::allow();
+        }
+
+        return Response::denyAsNotFound();
+    }
 }

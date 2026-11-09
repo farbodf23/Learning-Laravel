@@ -237,4 +237,97 @@ class TaskService
             ]);
         });
     }
+
+    public function changeTaskStatus(
+        Store $store,
+        Task $task,
+        User $user,
+        string $newStatus
+    ): Task {
+        return DB::transaction(function () use (
+            $store,
+            $task,
+            $user,
+            $newStatus
+        ) {
+            // Lock the task before checking its current status.
+            $task = $store->tasks()
+                ->whereKey($task->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            // Find the user's membership in this store.
+            $membership = $store->membershipFor($user);
+
+            // Define allowed transitions.
+            $transitions = [
+                'todo' => [
+                    'in_progress',
+                    'cancelled',
+                ],
+                'in_progress' => [
+                    'done',
+                    'cancelled',
+                ],
+                'done' => [
+                    'todo',
+                ],
+                'cancelled' => [
+                    'todo',
+                ],
+            ];
+
+            // Reject invalid transitions.
+            if (
+                ! in_array(
+                    $newStatus,
+                    $transitions[$task->status] ?? [],
+                    true
+                )
+            ) {
+                abort(409, 'Invalid task status transition.');
+            }
+
+            // Staff cannot cancel or reopen tasks.
+            if (
+                $membership->role === 'staff' &&
+                ! in_array($newStatus, ['in_progress', 'done'], true)
+            ) {
+                abort(403, 'Staff cannot cancel or reopen tasks.');
+            }
+
+            // Capture the original status.
+            $oldStatus = $task->status;
+
+            // Update status.
+            $task->status = $newStatus;
+
+            // Maintain completed_at consistency.
+            if ($newStatus === 'done') {
+                $task->completed_at = now();
+            } else {
+                $task->completed_at = null;
+            }
+
+            $task->save();
+
+            // Record the status change.
+            $task->events()->create([
+                'store_id' => $store->id,
+                'actor_id' => $user->id,
+                'event_type' => 'status_changed',
+                'changes' => [
+                    'status' => [
+                        'before' => $oldStatus,
+                        'after' => $newStatus,
+                    ],
+                ],
+            ]);
+
+            return $task->load([
+                'creator:id,name',
+                'assignee:id,name',
+            ]);
+        });
+    }
 }

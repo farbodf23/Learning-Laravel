@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ChangeTaskStatusRequest;
 use App\Http\Requests\StoreTaskRequest;
 use App\Http\Requests\TaskIndexRequest;
 use App\Http\Requests\UpdateTaskRequest;
@@ -99,6 +100,26 @@ class StoreController extends Controller
             $task,
             $request->user(),
             $request->validated()
+        );
+
+        return response()->json([
+            'data' => $updatedTask,
+        ]);
+    }
+
+    public function changeTaskStatus(
+        ChangeTaskStatusRequest $request,
+        Store $store,
+        Task $task,
+        TaskService $taskService
+    ) {
+        Gate::authorize('changeStatus', [$task, $store]);
+
+        $updatedTask = $taskService->changeTaskStatus(
+            $store,
+            $task,
+            $request->user(),
+            $request->validated()['status']
         );
 
         return response()->json([

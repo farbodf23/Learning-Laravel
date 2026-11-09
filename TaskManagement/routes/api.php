@@ -31,6 +31,10 @@ Route::prefix('v1')->group(function () {
             '/stores/{store}/tasks/{task}',
             [StoreController::class, 'updateTask']
         )->scopeBindings();
+        Route::patch(
+            '/stores/{store}/tasks/{task}/status',
+            [StoreController::class, 'changeTaskStatus']
+        )->scopeBindings();
     });
 
 });
