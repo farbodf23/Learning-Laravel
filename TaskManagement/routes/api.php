@@ -27,14 +27,42 @@ Route::prefix('v1')->group(function () {
             '/stores/{store}/tasks/{task}',
             [StoreController::class, 'showTask']
         )->scopeBindings();
+        // Update task details
         Route::patch(
             '/stores/{store}/tasks/{task}',
             [StoreController::class, 'updateTask']
         )->scopeBindings();
-        Route::patch(
+
+        // Assign or unassign a task
+        Route::put(
+            '/stores/{store}/tasks/{task}/assignee',
+            [StoreController::class, 'assignTask']
+        )->scopeBindings();
+
+        // Change task status
+        Route::put(
             '/stores/{store}/tasks/{task}/status',
             [StoreController::class, 'changeTaskStatus']
         )->scopeBindings();
+        Route::post(
+            '/stores/{store}/tasks/{task}/comments',
+            [StoreController::class, 'storeComment']
+        )->scopeBindings();
+
+        Route::get(
+            '/stores/{store}/tasks/{task}/comments',
+            [StoreController::class, 'taskComments']
+        )->scopeBindings();
+
+        Route::get(
+            '/stores/{store}/tasks/{task}/events',
+            [StoreController::class, 'taskEvents']
+        )->scopeBindings();
+
+        Route::get(
+            '/stores/{store}/task-summary',
+            [StoreController::class, 'taskSummary']
+        );
     });
 
 });

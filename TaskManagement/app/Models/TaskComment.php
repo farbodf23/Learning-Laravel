@@ -13,6 +13,8 @@ class TaskComment extends Model
     public const UPDATED_AT = null;
 
     protected $fillable = [
+        'store_id',
+        'user_id',
         'body',
     ];
 

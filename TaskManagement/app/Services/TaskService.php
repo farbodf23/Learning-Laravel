@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Store;
 use App\Models\Task;
+use App\Models\TaskComment;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -91,21 +92,6 @@ class TaskService
         // Transaction so that an eventless task is not created.
         return DB::transaction(function () use ($store, $user, $data) {
 
-            // 1. Validate the assignee's store membership.
-            if (! empty($data['assigned_to'])) {
-                $isMember = $store->memberships()
-                    ->where('user_id', $data['assigned_to'])
-                    ->exists();
-
-                if (! $isMember) {
-                    throw ValidationException::withMessages([
-                        'assigned_to' => [
-                            'The assigned user is not a member of this store.',
-                        ],
-                    ]);
-                }
-            }
-
             // 2. Create the task.
             $task = $store->tasks()->create([
                 'title' => trim($data['title']),
@@ -113,7 +99,7 @@ class TaskService
                 'priority' => $data['priority'] ?? 'medium',
                 'status' => 'todo',
                 'created_by' => $user->id,
-                'assigned_to' => $data['assigned_to'] ?? null,
+                'assigned_to' => null,
                 'due_at' => $data['due_at'] ?? null,
                 'completed_at' => null,
             ]);
@@ -157,42 +143,12 @@ class TaskService
                 ->whereKey($task->id)
                 ->lockForUpdate()
                 ->firstOrFail();
-            $membership = $store->membershipFor($user);
-
-            if (
-                $membership->role === 'staff' &&
-                array_key_exists('assigned_to', $data)
-            ) {
-                throw ValidationException::withMessages([
-                    'assigned_to' => [
-                        'Only managers can reassign tasks.',
-                    ],
-                ]);
-            }
-            // Validate the new assignee.
-            if (
-                array_key_exists('assigned_to', $data) &&
-                $data['assigned_to'] !== null
-            ) {
-                $isMember = $store->memberships()
-                    ->where('user_id', $data['assigned_to'])
-                    ->exists();
-
-                if (! $isMember) {
-                    throw ValidationException::withMessages([
-                        'assigned_to' => [
-                            'The assigned user is not a member of this store.',
-                        ],
-                    ]);
-                }
-            }
 
             // Capture the old values.
             $before = [
                 'title' => $task->title,
                 'description' => $task->description,
                 'priority' => $task->priority,
-                'assigned_to' => $task->assigned_to,
                 'due_at' => $task->due_at,
             ];
 
@@ -216,7 +172,6 @@ class TaskService
                 'title' => $task->title,
                 'description' => $task->description,
                 'priority' => $task->priority,
-                'assigned_to' => $task->assigned_to,
                 'due_at' => $task->due_at,
             ];
 
@@ -329,5 +284,135 @@ class TaskService
                 'assignee:id,name',
             ]);
         });
+    }
+
+    public function assignTask(
+        Store $store,
+        Task $task,
+        User $user,
+        ?int $assigneeId
+    ): Task {
+        return DB::transaction(function () use (
+            $store,
+            $task,
+            $user,
+            $assigneeId
+        ) {
+            // Retrieve and lock the task.
+            $task = $store->tasks()
+                ->whereKey($task->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            // Validate that the new assignee belongs to this store.
+            if ($assigneeId !== null) {
+                $isMember = $store->memberships()
+                    ->where('user_id', $assigneeId)
+                    ->exists();
+
+                if (! $isMember) {
+                    throw ValidationException::withMessages([
+                        'assigned_to' => [
+                            'The assigned user is not a member of this store.',
+                        ],
+                    ]);
+                }
+            }
+
+            // Capture the previous assignee.
+            $oldAssigneeId = $task->assigned_to;
+
+            // Avoid unnecessary updates and history events.
+            if ($oldAssigneeId == $assigneeId) {
+                return $task->load([
+                    'creator:id,name',
+                    'assignee:id,name',
+                ]);
+            }
+
+            // Update the assignment.
+            $task->assigned_to = $assigneeId;
+            $task->save();
+
+            // Record the assignment change.
+            $task->events()->create([
+                'store_id' => $store->id,
+                'actor_id' => $user->id,
+                'event_type' => 'assigned',
+                'changes' => [
+                    'assigned_to' => [
+                        'before' => $oldAssigneeId,
+                        'after' => $assigneeId,
+                    ],
+                ],
+            ]);
+
+            return $task->load([
+                'creator:id,name',
+                'assignee:id,name',
+            ]);
+        });
+    }
+
+    public function addComment(
+        Store $store,
+        Task $task,
+        User $user,
+        string $body
+    ): TaskComment {
+        return $task->comments()->create([
+            'store_id' => $store->id,
+            'user_id' => $user->id,
+            'body' => $body,
+        ])->load('user:id,name');
+    }
+
+    public function listComments(Task $task): LengthAwarePaginator
+    {
+        return $task->comments()
+            ->with('user:id,name')
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->paginate(20);
+    }
+
+    public function listEvents(Task $task): LengthAwarePaginator
+    {
+        return $task->events()
+            ->with('actor:id,name')
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->paginate(20);
+    }
+
+    public function taskSummary(Store $store): array
+    {
+        $statuses = ['todo', 'in_progress', 'done', 'cancelled'];
+
+        // Count tasks grouped by status.
+        $statusCounts = $store->tasks()
+            ->selectRaw('status, COUNT(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status');
+
+        // Ensure every status appears, even if its count is zero.
+        $byStatus = [];
+
+        foreach ($statuses as $status) {
+            $byStatus[$status] = (int) ($statusCounts[$status] ?? 0);
+        }
+
+        // Count only overdue tasks that are not completed or cancelled.
+        $overdue = $store->tasks()
+            ->whereIn('status', ['todo', 'in_progress'])
+            ->whereNotNull('due_at')
+            ->where('due_at', '<', now())
+            ->count();
+
+        return [
+            'total' => array_sum($byStatus),
+            'by_status' => $byStatus,
+            'overdue' => $overdue,
+        ];
     }
 }

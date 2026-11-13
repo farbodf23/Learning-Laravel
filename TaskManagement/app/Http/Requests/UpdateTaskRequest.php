@@ -37,13 +37,6 @@ class UpdateTaskRequest extends FormRequest
                 Rule::in(['low', 'medium', 'high']),
             ],
 
-            'assigned_to' => [
-                'sometimes',
-                'nullable',
-                'integer',
-                'min:1',
-            ],
-
             'due_at' => [
                 'sometimes',
                 'nullable',

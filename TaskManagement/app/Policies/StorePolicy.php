@@ -52,4 +52,25 @@ class StorePolicy
 
         return Response::allow();
     }
+
+    public function viewTaskSummary(
+        User $user,
+        Store $store
+    ): Response {
+        $membership = $store->membershipFor($user);
+
+        // Nonmembers should not know whether they can access this store.
+        if ($membership === null) {
+            return Response::denyAsNotFound();
+        }
+
+        // Only managers can access the summary.
+        if ($membership->role !== 'manager') {
+            return Response::deny(
+                'Only store managers can view the task summary.'
+            );
+        }
+
+        return Response::allow();
+    }
 }

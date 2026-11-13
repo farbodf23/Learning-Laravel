@@ -34,12 +34,6 @@ class StoreTaskRequest extends FormRequest
                 Rule::in(['low', 'medium', 'high']),
             ],
 
-            'assigned_to' => [
-                'nullable',
-                'integer',
-                'min:1',
-            ],
-
             'due_at' => [
                 'nullable',
                 'date',

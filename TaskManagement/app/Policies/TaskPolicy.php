@@ -102,4 +102,78 @@ class TaskPolicy
 
         return Response::denyAsNotFound();
     }
+
+    public function assign(
+        User $user,
+        Task $task,
+        Store $store
+    ): Response {
+        if ($task->store_id !== $store->id) {
+            return Response::denyAsNotFound();
+        }
+
+        $membership = $store->membershipFor($user);
+
+        if ($membership === null) {
+            return Response::denyAsNotFound();
+        }
+
+        if ($membership->role !== 'manager') {
+            return Response::deny(
+                'Only store managers can assign tasks.'
+            );
+        }
+
+        return Response::allow();
+    }
+
+    public function viewComments(
+        User $user,
+        Task $task,
+        Store $store
+    ): Response {
+        if ($task->store_id !== $store->id) {
+            return Response::denyAsNotFound();
+        }
+
+        $membership = $store->membershipFor($user);
+
+        if (! $membership) {
+            return Response::denyAsNotFound();
+        }
+
+        if (
+            $membership->role === 'staff'
+            && $task->assigned_to !== $user->id
+        ) {
+            return Response::denyAsNotFound();
+        }
+
+        return Response::allow();
+    }
+
+    public function createComment(
+        User $user,
+        Task $task,
+        Store $store
+    ): Response {
+        if ($task->store_id !== $store->id) {
+            return Response::denyAsNotFound();
+        }
+
+        $membership = $store->membershipFor($user);
+
+        if (! $membership) {
+            return Response::denyAsNotFound();
+        }
+
+        if (
+            $membership->role === 'staff'
+            && $task->assigned_to !== $user->id
+        ) {
+            return Response::denyAsNotFound();
+        }
+
+        return Response::allow();
+    }
 }
