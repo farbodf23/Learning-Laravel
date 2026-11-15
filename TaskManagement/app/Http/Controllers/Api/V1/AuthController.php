@@ -16,7 +16,10 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        $result = $authService->login($credentials);
+        $result = $authService->login(
+            $credentials,
+            $request->ip()
+        );
 
         return response()->json([
             'data' => [
