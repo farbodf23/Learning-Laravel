@@ -93,16 +93,19 @@ class TaskService
         return DB::transaction(function () use ($store, $user, $data) {
 
             // 2. Create the task.
-            $task = $store->tasks()->create([
+            $task = new Task([
                 'title' => trim($data['title']),
                 'description' => $data['description'] ?? null,
                 'priority' => $data['priority'] ?? 'medium',
-                'status' => 'todo',
-                'created_by' => $user->id,
-                'assigned_to' => null,
                 'due_at' => $data['due_at'] ?? null,
-                'completed_at' => null,
             ]);
+
+            $task->status = 'todo';
+            $task->created_by = $user->id;
+            $task->assigned_to = null;
+            $task->completed_at = null;
+
+            $store->tasks()->save($task);
 
             // 3. Record the initial event.
             $task->events()->create([
