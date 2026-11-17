@@ -2,22 +2,15 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Foundation\Http\Attributes\FailOnUnknownFields;
 use Illuminate\Foundation\Http\FormRequest;
 
+#[FailOnUnknownFields]
 class StoreCommentRequest extends FormRequest
 {
     public function authorize(): bool
     {
         return true;
-    }
-
-    protected function prepareForValidation(): void
-    {
-        if (is_string($this->body)) {
-            $this->merge([
-                'body' => trim($this->body),
-            ]);
-        }
     }
 
     public function rules(): array

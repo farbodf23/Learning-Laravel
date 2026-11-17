@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Foundation\Http\Attributes\FailOnUnknownFields;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
+#[FailOnUnknownFields]
 class ChangeTaskStatusRequest extends FormRequest
 {
     public function authorize(): bool

@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Foundation\Http\Attributes\FailOnUnknownFields;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
+#[FailOnUnknownFields]
 class TaskIndexRequest extends FormRequest
 {
     public function authorize(): bool
@@ -35,11 +37,13 @@ class TaskIndexRequest extends FormRequest
 
             'overdue' => [
                 'sometimes',
-                'boolean',
+                'required',
+                Rule::in(['true', 'false', '1', '0']),
             ],
 
             'q' => [
                 'sometimes',
+                'required',
                 'string',
                 'max:150',
             ],

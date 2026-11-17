@@ -51,14 +51,13 @@ class TaskService
             );
 
             if ($isOverdue) {
-                $query->whereNotNull('due_at')
-                    ->where('due_at', '<', now())
+                $query->where('due_at', '<', now())
                     ->whereIn('status', ['todo', 'in_progress']);
             } else {
                 $query->where(function ($query) {
                     $query->whereNull('due_at')
                         ->orWhere('due_at', '>=', now())
-                        ->orWhereNotIn('status', ['todo', 'in_progress']);
+                        ->orWhereIn('status', ['done', 'cancelled']);
                 });
             }
         }
@@ -216,6 +215,27 @@ class TaskService
 
             // Find the user's membership in this store.
             $membership = $store->membershipFor($user);
+
+            if ($membership === null) {
+                abort(404);
+            }
+
+            // Staff can only change tasks assigned to them.
+            if (
+                $membership->role === 'staff' &&
+                $task->assigned_to !== $user->id
+            ) {
+                abort(404);
+            }
+
+            // Handle no-op transitions.
+            // Same status means no update and no new event.
+            if ($task->status === $newStatus) {
+                return $task->load([
+                    'creator:id,name',
+                    'assignee:id,name',
+                ]);
+            }
 
             // Define allowed transitions.
             $transitions = [

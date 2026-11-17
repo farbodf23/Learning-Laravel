@@ -13,13 +13,12 @@ use App\Models\Store;
 use App\Models\Task;
 use App\Services\StoreService;
 use App\Services\TaskService;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class StoreController extends Controller
 {
     public function members(
-        Request $request,
+
         Store $store,
         StoreService $storeService
     ) {
@@ -52,7 +51,15 @@ class StoreController extends Controller
             $request->validated()
         );
 
-        return response()->json($tasks);
+        return response()->json([
+            'data' => $tasks->items(),
+
+            'meta' => [
+                'page' => $tasks->currentPage(),
+                'per_page' => $tasks->perPage(),
+                'total' => $tasks->total(),
+            ],
+        ]);
     }
 
     public function storeTask(
@@ -68,9 +75,14 @@ class StoreController extends Controller
             $request->validated()
         );
 
-        return response()->json([
-            'data' => $task,
-        ], 201);
+        return response()
+            ->json([
+                'data' => $task,
+            ], 201)
+            ->header(
+                'Location',
+                url("/api/v1/stores/{$store->id}/tasks/{$task->id}")
+            );
     }
 
     public function showTask(
@@ -178,7 +190,15 @@ class StoreController extends Controller
 
         $comments = $taskService->listComments($task);
 
-        return response()->json($comments);
+        return response()->json([
+            'data' => $comments->items(),
+
+            'meta' => [
+                'page' => $comments->currentPage(),
+                'per_page' => $comments->perPage(),
+                'total' => $comments->total(),
+            ],
+        ]);
     }
 
     public function taskEvents(
@@ -190,7 +210,15 @@ class StoreController extends Controller
 
         $events = $taskService->listEvents($task);
 
-        return response()->json($events);
+        return response()->json([
+            'data' => $events->items(),
+
+            'meta' => [
+                'page' => $events->currentPage(),
+                'per_page' => $events->perPage(),
+                'total' => $events->total(),
+            ],
+        ]);
     }
 
     public function taskSummary(

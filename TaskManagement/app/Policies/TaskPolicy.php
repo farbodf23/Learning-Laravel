@@ -31,9 +31,7 @@ class TaskPolicy
             $membership->role === 'staff' &&
             $task->assigned_to !== $user->id
         ) {
-            return Response::deny(
-                'This task is not assigned to you.'
-            );
+            return Response::denyAsNotFound();
         }
 
         return Response::allow();
@@ -69,9 +67,7 @@ class TaskPolicy
             return Response::allow();
         }
 
-        return Response::deny(
-            'You are not authorized to update this task.'
-        );
+        return Response::denyAsNotFound();
     }
 
     public function changeStatus(
