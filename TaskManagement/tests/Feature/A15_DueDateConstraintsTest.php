@@ -57,7 +57,8 @@ it('rejects creating a task with a past due date', function () {
     );
 
     $response->assertUnprocessable()
-        ->assertJsonValidationErrors(['due_at']);
+        ->assertJsonPath('error.code', 'VALIDATION_ERROR')
+        ->assertJsonStructure(['error' => ['fields' => ['due_at']]]);
 
     expect(Task::count())->toBe(0);
 });
@@ -77,7 +78,8 @@ it('rejects updating a task due date to a past date', function () {
     );
 
     $response->assertUnprocessable()
-        ->assertJsonValidationErrors(['due_at']);
+        ->assertJsonPath('error.code', 'VALIDATION_ERROR')
+        ->assertJsonStructure(['error' => ['fields' => ['due_at']]]);
 
     $task->refresh();
 

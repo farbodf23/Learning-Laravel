@@ -337,7 +337,7 @@ class TaskService
                 if (! $isMember) {
                     throw ValidationException::withMessages([
                         'assigned_to' => [
-                            'The assigned user is not a member of this store.',
+                            __('api.validation.assignee_not_member'),
                         ],
                     ]);
                 }

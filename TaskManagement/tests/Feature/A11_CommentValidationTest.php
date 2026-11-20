@@ -45,7 +45,8 @@ it('rejects empty comments', function () {
     );
 
     $response->assertUnprocessable()
-        ->assertJsonValidationErrors('body');
+        ->assertJsonPath('error.code', 'VALIDATION_ERROR')
+        ->assertJsonStructure(['error' => ['fields' => ['body']]]);
 
     expect(TaskComment::where('task_id', $task->id)->count())
         ->toBe(0);

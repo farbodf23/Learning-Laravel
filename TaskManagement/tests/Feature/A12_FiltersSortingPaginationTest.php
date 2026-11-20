@@ -209,5 +209,6 @@ it('rejects a per_page value greater than 100', function () {
     );
 
     $response->assertUnprocessable()
-        ->assertJsonValidationErrors('per_page');
+        ->assertJsonPath('error.code', 'VALIDATION_ERROR')
+        ->assertJsonStructure(['error' => ['fields' => ['per_page']]]);
 });

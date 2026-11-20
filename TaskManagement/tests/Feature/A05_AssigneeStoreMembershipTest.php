@@ -60,7 +60,8 @@ it('rejects assigning a task to a user outside the store', function () {
         ]
     )
         ->assertUnprocessable()
-        ->assertJsonValidationErrors(['assigned_to']);
+        ->assertJsonPath('error.code', 'VALIDATION_ERROR')
+        ->assertJsonStructure(['error' => ['fields' => ['assigned_to']]]);
 
     // Verify that the original assignment remains unchanged.
     $this->assertDatabaseHas('tasks', [

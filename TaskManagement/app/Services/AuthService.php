@@ -39,7 +39,7 @@ class AuthService
             RateLimiter::hit($key, 60);
 
             throw ValidationException::withMessages([
-                'email' => ['Invalid credentials.'],
+                'email' => [__('api.validation.invalid_credentials')],
             ]);
         }
 

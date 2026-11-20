@@ -37,16 +37,34 @@ class TaskPolicy
         return Response::allow();
     }
 
-public function update(User $user, Task $task, Store $store): bool
-{
-    $membership = $store->membershipFor($user);
+    public function update(
+        User $user,
+        Task $task,
+        Store $store
+    ): Response {
+        if ($task->store_id !== $store->id) {
+            return Response::denyAsNotFound();
+        }
 
-    if ($membership === null) {
-        abort(404);
+        $membership = $store->membershipFor($user);
+
+        if ($membership === null) {
+            return Response::denyAsNotFound();
+        }
+
+        if (
+            $membership->role === 'staff' &&
+            $task->assigned_to !== $user->id
+        ) {
+            return Response::denyAsNotFound();
+        }
+
+        if ($membership->role !== 'manager') {
+            return Response::deny('Only store managers can update tasks.');
+        }
+
+        return Response::allow();
     }
-
-    return $membership->role === 'manager';
-}
 
     public function changeStatus(
         User $user,
@@ -89,6 +107,13 @@ public function update(User $user, Task $task, Store $store): bool
         $membership = $store->membershipFor($user);
 
         if ($membership === null) {
+            return Response::denyAsNotFound();
+        }
+
+        if (
+            $membership->role === 'staff' &&
+            $task->assigned_to !== $user->id
+        ) {
             return Response::denyAsNotFound();
         }
 

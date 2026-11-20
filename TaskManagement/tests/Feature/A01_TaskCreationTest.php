@@ -88,7 +88,8 @@ it('rejects incomplete task data without saving anything', function () {
     );
 
     $response->assertUnprocessable()
-        ->assertJsonValidationErrors(['title']);
+        ->assertJsonPath('error.code', 'VALIDATION_ERROR')
+        ->assertJsonStructure(['error' => ['fields' => ['title']]]);
 
     expect(Task::count())->toBe(0);
     expect(TaskEvent::count())->toBe(0);
