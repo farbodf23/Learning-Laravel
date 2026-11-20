@@ -16,6 +16,8 @@ class StoreTaskRequest extends FormRequest
 
     public function rules(): array
     {
+        $store = $this->route('store');
+
         return [
             'title' => [
                 'required',
@@ -40,6 +42,14 @@ class StoreTaskRequest extends FormRequest
                 'nullable',
                 'date',
                 'after:now',
+            ],
+
+            'assigned_to' => [
+                'sometimes',
+                'nullable',
+                'integer',
+                Rule::exists('store_memberships', 'user_id')
+                    ->where('store_id', $store->id),
             ],
         ];
     }

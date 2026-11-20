@@ -88,10 +88,9 @@ class TaskService
         User $user,
         array $data
     ): Task {
-        // Transaction so that an eventless task is not created.
         return DB::transaction(function () use ($store, $user, $data) {
 
-            // 2. Create the task.
+            // 1. Create the task.
             $task = new Task([
                 'title' => trim($data['title']),
                 'description' => $data['description'] ?? null,
@@ -101,12 +100,12 @@ class TaskService
 
             $task->status = 'todo';
             $task->created_by = $user->id;
-            $task->assigned_to = null;
+            $task->assigned_to = $data['assigned_to'] ?? null;
             $task->completed_at = null;
 
             $store->tasks()->save($task);
 
-            // 3. Record the initial event.
+            // 2. Record the initial event.
             $task->events()->create([
                 'store_id' => $store->id,
                 'actor_id' => $user->id,
@@ -120,7 +119,7 @@ class TaskService
                 ],
             ]);
 
-            // 4. Load relationships needed in the response.
+            // 3. Load relationships needed in the response.
             return $task->load([
                 'creator:id,name',
                 'assignee:id,name',

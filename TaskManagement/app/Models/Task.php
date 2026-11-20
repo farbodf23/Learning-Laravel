@@ -16,6 +16,7 @@ class Task extends Model
         'description',
         'priority',
         'due_at',
+        'assigned_to',
     ];
 
     protected function casts(): array
