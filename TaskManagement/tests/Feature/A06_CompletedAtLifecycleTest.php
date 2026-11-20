@@ -4,6 +4,7 @@ use App\Models\Store;
 use App\Models\StoreMembership;
 use App\Models\Task;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Laravel\Sanctum\Sanctum;
 
 it('sets completed_at only when a task enters done', function () {
@@ -65,5 +66,5 @@ it('sets completed_at only when a task enters done', function () {
     ]);
 
     expect($task->completed_at)
-    ->toBeInstanceOf(\Carbon\CarbonImmutable::class);
+        ->toBeInstanceOf(CarbonImmutable::class);
 });

@@ -37,37 +37,11 @@ class TaskPolicy
         return Response::allow();
     }
 
-    public function update(
-        User $user,
-        Task $task,
-        Store $store
-    ): Response {
-        // Ensure the task belongs to the requested store.
-        if ($task->store_id !== $store->id) {
-            return Response::denyAsNotFound();
-        }
-
-        // Check store membership.
+    public function update(User $user, Task $task, Store $store): bool
+    {
         $membership = $store->membershipFor($user);
 
-        if ($membership === null) {
-            return Response::denyAsNotFound();
-        }
-
-        // Managers can update every task in their store.
-        if ($membership->role === 'manager') {
-            return Response::allow();
-        }
-
-        // Staff can only update tasks assigned to them.
-        if (
-            $membership->role === 'staff' &&
-            $task->assigned_to === $user->id
-        ) {
-            return Response::allow();
-        }
-
-        return Response::denyAsNotFound();
+        return $membership->role === 'manager';
     }
 
     public function changeStatus(

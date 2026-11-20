@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+
 it('rejects unauthenticated requests', function () {
     $response = $this->getJson('/api/v1/me');
 

@@ -295,9 +295,11 @@ class TaskService
                 'actor_id' => $user->id,
                 'event_type' => 'status_changed',
                 'changes' => [
-                    'status' => [
-                        'before' => $oldStatus,
-                        'after' => $newStatus,
+                    'before' => [
+                        'status' => $oldStatus,
+                    ],
+                    'after' => [
+                        'status' => $newStatus,
                     ],
                 ],
             ]);
