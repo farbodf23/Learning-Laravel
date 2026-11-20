@@ -37,12 +37,16 @@ class TaskPolicy
         return Response::allow();
     }
 
-    public function update(User $user, Task $task, Store $store): bool
-    {
-        $membership = $store->membershipFor($user);
+public function update(User $user, Task $task, Store $store): bool
+{
+    $membership = $store->membershipFor($user);
 
-        return $membership->role === 'manager';
+    if ($membership === null) {
+        abort(404);
     }
+
+    return $membership->role === 'manager';
+}
 
     public function changeStatus(
         User $user,

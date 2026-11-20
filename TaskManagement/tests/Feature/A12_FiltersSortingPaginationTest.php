@@ -85,7 +85,7 @@ it('applies combined filters using AND logic', function () {
 
     $response = $this->getJson(
         "/api/v1/stores/{$store->id}/tasks"
-        . "?status=todo&priority=high&assigned_to={$staff->id}"
+        ."?status=todo&priority=high&assigned_to={$staff->id}"
     );
 
     $response->assertOk()

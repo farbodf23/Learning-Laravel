@@ -14,7 +14,7 @@ function createTaskForA16(
 ): Task {
     return Task::forceCreate([
         'store_id' => $store->id,
-        'title' => 'Task for ' . $store->id,
+        'title' => 'Task for '.$store->id,
         'description' => null,
         'status' => 'todo',
         'priority' => 'medium',

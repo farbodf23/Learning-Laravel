@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -27,12 +28,9 @@ pest()->extend(TestCase::class)->use(RefreshDatabase::class)
 | to assert different things. Of course, you may extend the Expectation API at any time.
 |
 */
-uses(TestCase::class, Illuminate\Foundation\Testing\DatabaseMigrations::class)
+uses(TestCase::class, DatabaseMigrations::class)
     ->in('Integration');
 
-
-
-    
 expect()->extend('toBeOne', function () {
     return $this->toBe(1);
 });

@@ -5,6 +5,7 @@ use App\Models\Store;
 use App\Models\StoreMembership;
 use App\Models\Task;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Laravel\Sanctum\Sanctum;
 
 function createManagerAndStoreForA13(): array
@@ -42,7 +43,7 @@ function createTaskForA13(
 beforeEach(function () {
     // Freeze time so overdue calculations are predictable.
     $this->travelTo(
-        \Illuminate\Support\Carbon::parse('2026-06-15 12:00:00')
+        Carbon::parse('2026-06-15 12:00:00')
     );
 });
 
