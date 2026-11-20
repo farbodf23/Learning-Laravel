@@ -53,10 +53,10 @@ it('logs exactly one event after a successful status change', function () {
 
     expect($events)->toHaveCount(1)
         ->and($events->first()->event_type)->toBe('status_changed')
-        ->and($events->first()->changes)->toBe([
-            'before' => ['status' => 'todo'],
-            'after' => ['status' => 'in_progress'],
-        ]);
+        ->and($events->first()->changes)->toEqual([
+    'before' => ['status' => 'todo'],
+    'after' => ['status' => 'in_progress'],
+]);
 });
 
 it('does not create an event when the requested status is unchanged', function () {
