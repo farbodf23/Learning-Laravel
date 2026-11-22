@@ -1,0 +1,1187 @@
+
+openapi: 3.0.3
+
+info:
+  title: Task Management API
+  description: |
+    REST API for managing tasks across multiple stores.
+    Users can belong to multiple stores and have different roles
+    (manager or staff) in each store.
+    All API errors use the Persian error envelope defined by ApiError.
+  version: 1.0.0
+
+servers:
+  - url: http://127.0.0.1:8000/api/v1
+    description: Local development server
+
+tags:
+  - name: Authentication
+    description: Login and logout operations
+  - name: User
+    description: Authenticated user information
+  - name: Stores
+    description: Store membership and task summary
+  - name: Tasks
+    description: Task creation, retrieval, updating, and management
+  - name: Comments
+    description: Task comments
+  - name: Events
+    description: Task event history
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Sanctum
+      description: |
+        Enter the API token returned by the login endpoint.
+        Use the format: Bearer YOUR_TOKEN
+
+  schemas:
+    ApiError:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              enum:
+                - BAD_REQUEST
+                - UNAUTHENTICATED
+                - FORBIDDEN
+                - NOT_FOUND
+                - METHOD_NOT_ALLOWED
+                - CONFLICT
+                - CSRF_TOKEN_MISMATCH
+                - VALIDATION_ERROR
+                - TOO_MANY_REQUESTS
+                - INTERNAL_SERVER_ERROR
+                - HTTP_ERROR
+              example: VALIDATION_ERROR
+            message:
+              type: string
+              description: Persian, human-readable summary.
+              example: اطلاعات ورودی معتبر نیست.
+            fields:
+              type: object
+              description: Present for validation errors; maps field names to Persian messages.
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+              example:
+                title:
+                  - فیلد عنوان باید حداقل 3 نویسه داشته باشد.
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        name:
+          type: string
+          example: Manager
+        email:
+          type: string
+          format: email
+          example: manager@example.com
+      required:
+        - id
+        - name
+        - email
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: manager@example.com
+        password:
+          type: string
+          format: password
+          example: password
+
+    LoginResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            user:
+              $ref: '#/components/schemas/User'
+            token:
+              type: string
+              description: Sanctum personal access token.
+              example: 1|exampleTokenValue
+          required:
+            - user
+            - token
+      required:
+        - data
+
+    CurrentUserResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/User'
+      required:
+        - data
+
+    StoreMembership:
+      type: object
+      properties:
+        store_id:
+          type: integer
+          format: int64
+          example: 1
+        store_name:
+          type: string
+          example: Store A
+        role:
+          type: string
+          enum:
+            - manager
+            - staff
+          example: manager
+      required:
+        - store_id
+        - store_name
+        - role
+
+    MyStoresResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/StoreMembership'
+      required:
+        - data
+    
+    StoreMember:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          format: int64
+          example: 5
+        name:
+          type: string
+          example: Alex
+        email:
+          type: string
+          format: email
+          example: alex@example.com
+        role:
+          type: string
+          enum: [manager, staff]
+          example: staff
+      required:
+        - user_id
+        - name
+        - email
+        - role
+
+    StoreMembersResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/StoreMember'
+      required:
+        - data
+
+    Task:
+      type: object
+      description: Task fields serialized by the API, including the loaded creator and assignee.
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+          example: 12
+        store_id:
+          type: integer
+          format: int64
+          readOnly: true
+          example: 1
+        title:
+          type: string
+          minLength: 3
+          maxLength: 150
+          example: Prepare monthly report
+        description:
+          type: string
+          nullable: true
+          maxLength: 5000
+          example: Prepare and review the monthly sales report.
+        status:
+          type: string
+          enum: [todo, in_progress, done, cancelled]
+          example: todo
+        priority:
+          type: string
+          enum: [low, medium, high]
+          example: medium
+        created_by:
+          type: integer
+          format: int64
+          readOnly: true
+          example: 2
+        assigned_to:
+          type: integer
+          format: int64
+          nullable: true
+          example: 5
+        due_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2026-12-01T10:00:00Z'
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
+          example: null
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        creator:
+          type: object
+          readOnly: true
+          properties:
+            id:
+              type: integer
+              format: int64
+            name:
+              type: string
+        assignee:
+          type: object
+          nullable: true
+          readOnly: true
+          properties:
+            id:
+              type: integer
+              format: int64
+            name:
+              type: string
+      required:
+        - id
+        - store_id
+        - title
+        - description
+        - status
+        - priority
+        - created_by
+        - assigned_to
+        - due_at
+        - completed_at
+        - created_at
+        - updated_at
+        - creator
+        - assignee
+
+    TaskResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Task'
+      required:
+        - data
+
+    TaskListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+      required:
+        - data
+        - meta
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        per_page:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          example: 45
+      required:
+        - page
+        - per_page
+        - total
+
+    CreateTaskRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          minLength: 3
+          maxLength: 150
+          example: Prepare monthly report
+        description:
+          type: string
+          nullable: true
+          maxLength: 5000
+          example: Prepare the monthly sales report.
+        priority:
+          type: string
+          enum: [low, medium, high]
+          default: medium
+          example: high
+        due_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: If supplied, must be a future date and time.
+          example: '2026-12-01T10:00:00Z'
+        assigned_to:
+          type: integer
+          format: int64
+          nullable: true
+          description: Must identify a member of this store. Null means unassigned.
+          example: 5
+
+    UpdateTaskRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+          minLength: 3
+          maxLength: 150
+        description:
+          type: string
+          nullable: true
+          maxLength: 5000
+        priority:
+          type: string
+          enum: [low, medium, high]
+        due_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: If supplied as a non-null value, must be in the future.
+
+    AssignTaskRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - assigned_to
+      properties:
+        assigned_to:
+          type: integer
+          format: int64
+          nullable: true
+          description: User ID of a store member, or null to unassign the task.
+          example: 5
+
+    ChangeTaskStatusRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [todo, in_progress, done, cancelled]
+          example: in_progress
+
+    CreateCommentRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - body
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          example: I have started working on this task.
+
+    Comment:
+      type: object
+      description: Comment response, including the selected author fields.
+      properties:
+        id:
+          type: integer
+          format: int64
+        store_id:
+          type: integer
+          format: int64
+        task_id:
+          type: integer
+          format: int64
+        user_id:
+          type: integer
+          format: int64
+        body:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        user:
+          type: object
+          readOnly: true
+          properties:
+            id:
+              type: integer
+              format: int64
+            name:
+              type: string
+      required:
+        - id
+        - store_id
+        - task_id
+        - user_id
+        - body
+        - created_at
+        - user
+
+    CommentResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Comment'
+      required:
+        - data
+
+    CommentListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Comment'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+      required:
+        - data
+        - meta
+
+    Event:
+      type: object
+      description: Task event response, including the selected actor fields.
+      properties:
+        id:
+          type: integer
+          format: int64
+        store_id:
+          type: integer
+          format: int64
+        task_id:
+          type: integer
+          format: int64
+        actor_id:
+          type: integer
+          format: int64
+        event_type:
+          type: string
+        changes:
+          type: object
+          nullable: true
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        actor:
+          type: object
+          readOnly: true
+          properties:
+            id:
+              type: integer
+              format: int64
+            name:
+              type: string
+      required:
+        - id
+        - store_id
+        - task_id
+        - actor_id
+        - event_type
+        - changes
+        - created_at
+        - actor
+
+    EventListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Event'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+      required:
+        - data
+        - meta
+
+    TaskSummary:
+      type: object
+      required:
+        - total
+        - by_status
+        - overdue
+      properties:
+        total:
+          type: integer
+          example: 12
+        by_status:
+          type: object
+          required:
+            - todo
+            - in_progress
+            - done
+            - cancelled
+          properties:
+            todo:
+              type: integer
+            in_progress:
+              type: integer
+            done:
+              type: integer
+            cancelled:
+              type: integer
+        overdue:
+          type: integer
+          description: Number of overdue tasks that are not done or cancelled.
+          example: 2
+
+    TaskSummaryResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/TaskSummary'
+
+  parameters:
+    StoreId:
+      name: store
+      in: path
+      required: true
+      description: Store identifier.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+      example: 1
+
+    TaskId:
+      name: task
+      in: path
+      required: true
+      description: Task identifier scoped to the requested store.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+      example: 12
+
+    Page:
+      name: page
+      in: query
+      required: false
+      description: Page number. Comment and event endpoints use a fixed page size of 20.
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+
+  responses:
+    Unauthenticated:
+      description: Missing, invalid, or revoked bearer token.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            error:
+              code: UNAUTHENTICATED
+              message: برای دسترسی به این بخش، احراز هویت کنید.
+
+    Forbidden:
+      description: Authenticated user lacks permission for a visible resource.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            error:
+              code: FORBIDDEN
+              message: اجازه دسترسی به این بخش را ندارید.
+
+    NotFound:
+      description: Resource does not exist or is not visible to the authenticated user.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            error:
+              code: NOT_FOUND
+              message: منبع مورد نظر یافت نشد.
+
+    Conflict:
+      description: Requested state transition is not allowed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            error:
+              code: CONFLICT
+              message: درخواست با وضعیت فعلی منبع سازگار نیست.
+
+    ValidationError:
+      description: Request validation failed. Messages and field labels are in Persian.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: اطلاعات ورودی معتبر نیست.
+              fields:
+                title:
+                  - فیلد عنوان باید حداقل 3 نویسه داشته باشد.
+
+    TooManyRequests:
+      description: Login rate limit exceeded (five failed attempts per IP and normalized email per 60 seconds).
+      headers:
+        Retry-After:
+          description: Number of seconds until another login attempt is allowed.
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            error:
+              code: TOO_MANY_REQUESTS
+              message: تعداد درخواست‌ها بیش از حد مجاز است. بعداً دوباره تلاش کنید.
+
+    DefaultApiError:
+      description: Any other API error, including malformed requests and unexpected server errors.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example:
+            error:
+              code: INTERNAL_SERVER_ERROR
+              message: خطایی در پردازش درخواست رخ داد.
+
+paths:
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Authenticate a user
+      description: |
+        Authenticates a user and returns a Sanctum API token.
+        Five failed attempts per IP and normalized email are allowed
+        within a 60-second window.
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        default:
+          $ref: '#/components/responses/DefaultApiError'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Log out the current user
+      description: Revokes the current Sanctum access token.
+      operationId: logout
+      responses:
+        '204':
+          description: Token successfully revoked
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        default:
+          $ref: '#/components/responses/DefaultApiError'
+
+  /me:
+    get:
+      tags:
+        - User
+      summary: Get the authenticated user
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: Current user returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUserResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        default:
+          $ref: '#/components/responses/DefaultApiError'
+
+  /me/stores:
+    get:
+      tags:
+        - User
+      summary: List the authenticated user's stores
+      description: |
+        Returns the stores the authenticated user belongs to,
+        including their role in each store.
+      operationId: getMyStores
+      responses:
+        '200':
+          description: Store memberships returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyStoresResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        default:
+          $ref: '#/components/responses/DefaultApiError'
+
+  /stores/{store}/members:
+    get:
+      tags:
+        - Stores
+      summary: List store members
+      description: Only a manager of the requested store can view its members. Nonmembers receive 404; store staff receive 403.
+      operationId: listStoreMembers
+      parameters:
+        - $ref: '#/components/parameters/StoreId'
+      responses:
+        '200':
+          description: Store members returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoreMembersResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/DefaultApiError'
+
+  /stores/{store}/task-summary:
+    get:
+      tags:
+        - Stores
+      summary: Get task summary
+      description: Only a manager of the requested store can access its task summary. Nonmembers receive 404 and staff receive 403.
+      operationId: getTaskSummary
+      parameters:
+        - $ref: '#/components/parameters/StoreId'
+      responses:
+        '200':
+          description: Task summary returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskSummaryResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/DefaultApiError'
+
+  /stores/{store}/tasks:
+    get:
+      tags:
+        - Tasks
+      summary: List store tasks
+      description: |
+        Returns a paginated list of tasks.
+        Managers can see all tasks in the store.
+        Staff can only see tasks assigned to them.
+        All supplied filters are combined using AND logic. The search term
+        is matched against both task titles and descriptions.
+      operationId: listTasks
+      parameters:
+        - $ref: '#/components/parameters/StoreId'
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [todo, in_progress, done, cancelled]
+        - name: priority
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [low, medium, high]
+        - name: assigned_to
+          in: query
+          required: false
+          description: Filter by assignee user ID. This does not expand staff visibility.
+          schema:
+            type: integer
+            minimum: 1
+        - name: overdue
+          in: query
+          required: false
+          description: Filter overdue or non-overdue tasks.
+          schema:
+            type: string
+            enum: ['true', 'false', '1', '0']
+        - name: q
+          in: query
+          required: false
+          description: Search task titles and descriptions.
+          schema:
+            type: string
+            maxLength: 150
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Tasks returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        default:
+          $ref: '#/components/responses/DefaultApiError'
+
+    post:
+      tags:
+        - Tasks
+      summary: Create a task
+      description: |
+        Creates a task in the requested store.
+        Only store managers can create tasks.
+        The creator is the authenticated manager.
+        An optional assignee must belong to the same store.
+      operationId: createTask
+      parameters:
+        - $ref: '#/components/parameters/StoreId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+      responses:
+        '201':
+          description: Task created successfully
+          headers:
+            Location:
+              description: URL of the newly created task.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        default:
+          $ref: '#/components/responses/DefaultApiError'
+
+  /stores/{store}/tasks/{task}:
+    get:
+      tags:
+        - Tasks
+      summary: Get task details
+      description: |
+        Returns a task and its creator and assignee information.
+        Staff can only view tasks assigned to them.
+      operationId: getTask
+      parameters:
+        - $ref: '#/components/parameters/StoreId'
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '200':
+          description: Task returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/DefaultApiError'
+
+    patch:
+      tags:
+        - Tasks
+      summary: Update task details
+      description: |
+        Only store managers can update task specifications. This endpoint
+        does not change the task status or assignee. An empty object is
+        accepted as a no-op. Staff cannot update tasks they cannot see;
+        those tasks return 404.
+      operationId: updateTask
+      parameters:
+        - $ref: '#/components/parameters/StoreId'
+        - $ref: '#/components/parameters/TaskId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskRequest'
+      responses:
+        '200':
+          description: Task updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        default:
+          $ref: '#/components/responses/DefaultApiError'
+
+  /stores/{store}/tasks/{task}/assignee:
+    put:
+      tags:
+        - Tasks
+      summary: Assign or unassign a task
+      description: |
+        Only a store manager can assign a task. The assignee must be a
+        member of the same store. Send null to unassign. Staff cannot access
+        assignments for tasks they cannot see; those tasks return 404.
+      operationId: assignTask
+      parameters:
+        - $ref: '#/components/parameters/StoreId'
+        - $ref: '#/components/parameters/TaskId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignTaskRequest'
+      responses:
+        '200':
+          description: Task assignee updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        default:
+          $ref: '#/components/responses/DefaultApiError'
+
+  /stores/{store}/tasks/{task}/status:
+    put:
+      tags:
+        - Tasks
+      summary: Change task status
+      description: |
+        Changes the task status subject to the allowed state transitions.
+        Managers can perform manager-only transitions.
+        Staff can change status only on tasks assigned to them.
+        A no-op request using the current status succeeds without creating
+        an additional event. Invalid transitions return 409 Conflict.
+      operationId: changeTaskStatus
+      parameters:
+        - $ref: '#/components/parameters/StoreId'
+        - $ref: '#/components/parameters/TaskId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeTaskStatusRequest'
+      responses:
+        '200':
+          description: Task status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        default:
+          $ref: '#/components/responses/DefaultApiError'
+
+  /stores/{store}/tasks/{task}/comments:
+    get:
+      tags:
+        - Comments
+      summary: List task comments
+      description: Returns comments in pages of 20. Staff can view comments only on their assigned tasks.
+      operationId: listTaskComments
+      parameters:
+        - $ref: '#/components/parameters/StoreId'
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Comments returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/DefaultApiError'
+
+    post:
+      tags:
+        - Comments
+      summary: Add a task comment
+      description: Managers and staff assigned to the task can add comments. Comments are immutable.
+      operationId: createTaskComment
+      parameters:
+        - $ref: '#/components/parameters/StoreId'
+        - $ref: '#/components/parameters/TaskId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCommentRequest'
+      responses:
+        '201':
+          description: Comment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        default:
+          $ref: '#/components/responses/DefaultApiError'
+
+  /stores/{store}/tasks/{task}/events:
+    get:
+      tags:
+        - Events
+      summary: List task event history
+      description: Returns the task's event history in pages of 20. Access follows task visibility rules.
+      operationId: listTaskEvents
+      parameters:
+        - $ref: '#/components/parameters/StoreId'
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Task events returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/DefaultApiError'
