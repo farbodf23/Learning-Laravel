@@ -964,6 +964,79 @@ paths:
         default:
           $ref: '#/components/responses/DefaultApiError'
 
+  /stores/{store}/tasks/export:
+    get:
+      tags:
+        - Tasks
+      summary: Export store tasks as CSV
+      description: |
+        Downloads matching tasks as a UTF-8 CSV file with a byte-order mark
+        for spreadsheet compatibility. The export uses the same filters and
+        visibility rules as the task list: managers see all store tasks, while
+        staff see only tasks assigned to them. Results are ordered by creation
+        time and ID, both descending.
+      operationId: exportTasks
+      parameters:
+        - $ref: '#/components/parameters/StoreId'
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [todo, in_progress, done, cancelled]
+        - name: priority
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [low, medium, high]
+        - name: assigned_to
+          in: query
+          required: false
+          description: Filter by assignee user ID. Does not expand staff visibility.
+          schema:
+            type: integer
+            minimum: 1
+        - name: overdue
+          in: query
+          required: false
+          description: Include overdue or non-overdue tasks.
+          schema:
+            type: string
+            enum: ['true', 'false', '1', '0']
+        - name: q
+          in: query
+          required: false
+          description: Search task titles and descriptions.
+          schema:
+            type: string
+            maxLength: 150
+      responses:
+        '200':
+          description: CSV file containing the matching tasks.
+          headers:
+            Content-Disposition:
+              description: Attachment filename includes the current date.
+              schema:
+                type: string
+              example: attachment; filename=kasbify-tasks-2026-11-25.csv
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+              example: |
+                id,title,description,status,priority,creator_name,assignee_name,due_at,completed_at,created_at
+                12,Prepare monthly report,Review sales data,todo,high,Alex,Sam,,,2026-11-25T10:00:00Z
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        default:
+          $ref: '#/components/responses/DefaultApiError'
+
   /stores/{store}/tasks/{task}:
     get:
       tags:

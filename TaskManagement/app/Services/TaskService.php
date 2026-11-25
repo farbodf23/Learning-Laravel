@@ -7,43 +7,39 @@ use App\Models\Task;
 use App\Models\TaskComment;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-
+use Illuminate\Support\LazyCollection;
 class TaskService
+
 {
-    public function listTasks(
+    private function buildTaskQuery(
         Store $store,
         User $user,
         array $filters = []
-    ): LengthAwarePaginator {
-
+    ): HasMany {
         $membership = $store->membershipFor($user);
 
-        // Start with tasks belonging to this store.
         $query = $store->tasks();
 
-        // Staff can only see tasks assigned to themselves.
+        // Staff can only access tasks assigned to them.
         if ($membership->role === 'staff') {
             $query->where('assigned_to', $user->id);
         }
 
-        // Filter by status.
         if (isset($filters['status'])) {
             $query->where('status', $filters['status']);
         }
 
-        // Filter by priority.
         if (isset($filters['priority'])) {
             $query->where('priority', $filters['priority']);
         }
 
-        // Filter by assignee.
         if (isset($filters['assigned_to'])) {
             $query->where('assigned_to', $filters['assigned_to']);
         }
 
-        // Filter overdue tasks.
         if (array_key_exists('overdue', $filters)) {
             $isOverdue = filter_var(
                 $filters['overdue'],
@@ -62,7 +58,6 @@ class TaskService
             }
         }
 
-        // Search title and description.
         if (isset($filters['q'])) {
             $search = $filters['q'];
 
@@ -72,12 +67,16 @@ class TaskService
             });
         }
 
-        // Load related users and paginate.
-        return $query
-            ->with([
-                'creator:id,name',
-                'assignee:id,name',
-            ])
+        return $query;
+    }
+
+    public function listTasks(
+        Store $store,
+        User $user,
+        array $filters = []
+    ): LengthAwarePaginator {
+        return $this->buildTaskQuery($store, $user, $filters)
+            ->with(['creator:id,name', 'assignee:id,name'])
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->paginate($filters['per_page'] ?? 20);
@@ -438,5 +437,30 @@ class TaskService
             'by_status' => $byStatus,
             'overdue' => $overdue,
         ];
+    }
+
+    public function exportTasks(
+        Store $store,
+        User $user,
+        array $filters = []
+    ): LazyCollection {
+        return $this->buildTaskQuery($store, $user, $filters)
+            ->leftJoin('users as creator', 'creator.id', '=', 'tasks.created_by')
+            ->leftJoin('users as assignee', 'assignee.id', '=', 'tasks.assigned_to')
+            ->select([
+                'tasks.id',
+                'tasks.title',
+                'tasks.description',
+                'tasks.status',
+                'tasks.priority',
+                'creator.name as creator_name',
+                'assignee.name as assignee_name',
+                'tasks.due_at',
+                'tasks.completed_at',
+                'tasks.created_at',
+            ])
+            ->orderByDesc('tasks.created_at')
+            ->orderByDesc('tasks.id')
+            ->cursor();
     }
 }

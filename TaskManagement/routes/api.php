@@ -24,6 +24,10 @@ Route::prefix('v1')->group(function () {
             [StoreController::class, 'storeTask']
         );
         Route::get(
+            '/stores/{store}/tasks/export',
+            [StoreController::class, 'exportTasks']
+        );
+        Route::get(
             '/stores/{store}/tasks/{task}',
             [StoreController::class, 'showTask']
         )->scopeBindings();

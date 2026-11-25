@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Kasbify - Task Management API",
-    "description": "Postman collection for demonstrating the Kasbify task management API. Import the matching Kasbify Local environment, enter the seeded account credentials, and run requests in the suggested order. The collection uses the API contract documented in docs/openapi.yaml.",
+    "description": "Postman collection for demonstrating the Kasbify task management API. Import the matching Kasbify Local environment, enter the seeded account credentials, and run requests in the suggested order. The collection uses the API contract documented in docs/openapi.yaml and checks the standard Persian error envelope on every failed response. Run Logout - Manager last.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -14,6 +14,47 @@
       }
     ]
   },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (pm.response.code >= 400) {",
+          "    pm.test('API errors use the Persian error envelope', function () {",
+          "        const body = pm.response.json();",
+          "        pm.expect(body).to.have.property('error');",
+          "        pm.expect(body.error.code).to.be.a('string');",
+          "        pm.expect(body.error.message).to.match(/[\\u0600-\\u06FF]/);",
+          "        const expectedCodes = {",
+          "            400: 'BAD_REQUEST',",
+          "            401: 'UNAUTHENTICATED',",
+          "            403: 'FORBIDDEN',",
+          "            404: 'NOT_FOUND',",
+          "            405: 'METHOD_NOT_ALLOWED',",
+          "            409: 'CONFLICT',",
+          "            419: 'CSRF_TOKEN_MISMATCH',",
+          "            422: 'VALIDATION_ERROR',",
+          "            429: 'TOO_MANY_REQUESTS'",
+          "        };",
+          "        if (expectedCodes[pm.response.code]) {",
+          "            pm.expect(body.error.code).to.eql(expectedCodes[pm.response.code]);",
+          "        }",
+          "        if (pm.response.code === 422) {",
+          "            pm.expect(body.error.fields).to.be.an('object').and.not.an('array');",
+          "            Object.values(body.error.fields).forEach(function (messages) {",
+          "                pm.expect(messages).to.be.an('array').that.is.not.empty;",
+          "                messages.forEach(function (message) {",
+          "                    pm.expect(message).to.match(/[\\u0600-\\u06FF]/);",
+          "                });",
+          "            });",
+          "        }",
+          "    });",
+          "}"
+        ]
+      }
+    }
+  ],
   "variable": [
     {
       "key": "base_url",
@@ -430,6 +471,43 @@
           ]
         },
         {
+          "name": "Export Tasks - CSV",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/stores/{{store_id}}/tasks/export?status=todo&priority=high",
+            "description": "Downloads a CSV export using the same filters and store visibility rules as List Tasks. The response includes a UTF-8 BOM for spreadsheet compatibility.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manager_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response is a CSV download', function () {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('text/csv');",
+                  "    const csv = pm.response.text().replace(/^\\uFEFF/, '');",
+                  "    pm.expect(csv.split(/\\r?\\n/, 1)[0]).to.eql('id,title,description,status,priority,creator_name,assignee_name,due_at,completed_at,created_at');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Get Task Details",
           "request": {
             "method": "GET",
@@ -834,6 +912,38 @@
               }
             }
           ]
+        }
+      ]
+    },
+    {
+      "name": "Logout - Manager",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": "{{base_url}}/auth/logout",
+        "description": "Revokes the current manager token. The token can no longer access protected endpoints after logout.",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{manager_token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP status is 204', function () {",
+              "    pm.response.to.have.status(204);",
+              "});"
+            ]
+          }
         }
       ]
     }

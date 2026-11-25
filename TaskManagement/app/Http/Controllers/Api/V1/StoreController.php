@@ -233,4 +233,76 @@ class StoreController extends Controller
             'data' => $summary,
         ]);
     }
+
+    public function exportTasks(
+        TaskIndexRequest $request,
+        Store $store,
+        TaskService $taskService
+    ) {
+        Gate::authorize('viewTasks', $store);
+
+        $tasks = $taskService->exportTasks(
+            $store,
+            $request->user(),
+            $request->validated()
+        );
+
+        return response()->streamDownload(
+            function () use ($tasks) {
+                $handle = fopen('php://output', 'w');
+
+                // UTF-8 BOM helps Excel recognize UTF-8 CSV files.
+                fwrite($handle, "\xEF\xBB\xBF");
+
+                $headers = [
+                    'id',
+                    'title',
+                    'description',
+                    'status',
+                    'priority',
+                    'creator_name',
+                    'assignee_name',
+                    'due_at',
+                    'completed_at',
+                    'created_at',
+                ];
+
+                fputcsv($handle, $headers, ',', '"', '');
+
+                foreach ($tasks as $task) {
+                    fputcsv($handle, [
+                        $task->id,
+                        $this->safeCsvCell($task->title),
+                        $this->safeCsvCell($task->description),
+                        $task->status,
+                        $task->priority,
+                        $this->safeCsvCell($task->creator_name),
+                        $this->safeCsvCell($task->assignee_name),
+                        $task->due_at,
+                        $task->completed_at,
+                        $task->created_at,
+                    ], ',', '"', '');
+                }
+
+                fclose($handle);
+            },
+            'kasbify-tasks-'.now()->format('Y-m-d').'.csv',
+            [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+            ]
+        );
+    }
+
+    private function safeCsvCell(mixed $value): string
+    {
+        $value = (string) ($value ?? '');
+
+        // Prevent spreadsheet applications from interpreting
+        // untrusted text as a formula.
+        if (preg_match('/^[\x00-\x20]*[=+\-@]/', $value)) {
+            return "'".$value;
+        }
+
+        return $value;
+    }
 }
