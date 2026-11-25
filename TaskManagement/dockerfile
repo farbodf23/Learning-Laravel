@@ -1,0 +1,32 @@
+
+FROM php:8.3-cli
+
+# Install system dependencies and PHP extensions.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    unzip \
+    libpq-dev \
+    libonig-dev \
+    && docker-php-ext-install \
+    pdo_pgsql \
+    mbstring \
+    bcmath \
+    pcntl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Composer from the official Composer image.
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# Set the application directory inside the container.
+WORKDIR /var/www/html
+
+# Copy the project into the image.
+COPY . .
+
+# Install PHP dependencies.
+RUN composer install --no-interaction --prefer-dist --no-progress
+
+# Laravel development server.
+EXPOSE 8000
+
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]

@@ -1,0 +1,45 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kasbify_app
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/var/www/html
+      - /var/www/html/vendor
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - kasbify
+
+  db:
+    image: postgres:15-alpine
+    container_name: kasbify_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kasbify
+      POSTGRES_USER: kasbify
+      POSTGRES_PASSWORD: kasbify_dev_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - kasbify_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U kasbify -d kasbify" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kasbify
+
+networks:
+  kasbify:
+    driver: bridge
+
+volumes:
+  kasbify_db_data:
